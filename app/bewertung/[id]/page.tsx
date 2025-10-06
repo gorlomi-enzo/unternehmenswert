@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { Download, TrendingUp, Building2, AlertCircle, FileText } from "lucide-react"
+import { Download, TrendingUp, Building2, AlertCircle, FileText, BarChart3, PieChart } from "lucide-react"
 import type { ValuationReport } from "@/lib/valuation-schema"
 import { generatePDF } from "@/lib/pdf-generator"
 
@@ -22,37 +22,24 @@ export default function ValuationReportPage() {
       try {
         console.log("[v0] Loading valuation for ID:", params.id)
 
-        // Get form data from localStorage
+        // Get valuation from localStorage
+        const valuationStr = localStorage.getItem(`valuation_${params.id}`)
         const formDataStr = localStorage.getItem("valuationFormData")
-        if (!formDataStr) {
-          setError("Keine Bewertungsdaten gefunden")
+
+        if (!valuationStr || !formDataStr) {
+          setError("Bewertung nicht gefunden")
           setLoading(false)
           return
         }
 
+        const parsedValuation = JSON.parse(valuationStr)
         const parsedFormData = JSON.parse(formDataStr)
+
+        setValuation(parsedValuation)
         setFormData(parsedFormData)
-        console.log("[v0] Form data loaded:", parsedFormData)
-
-        // Generate valuation
-        console.log("[v0] Generating valuation...")
-        const response = await fetch("/api/valuation/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(parsedFormData),
-        })
-
-        const result = await response.json()
-        console.log("[v0] Valuation result:", result)
-
-        if (!result.success) {
-          setError(result.error || "Fehler bei der Bewertungserstellung")
-          setLoading(false)
-          return
-        }
-
-        setValuation(result.valuation)
         setLoading(false)
+
+        console.log("[v0] Valuation loaded successfully")
       } catch (err) {
         console.error("[v0] Error loading valuation:", err)
         setError("Fehler beim Laden der Bewertung")
@@ -95,13 +82,16 @@ export default function ValuationReportPage() {
     }
   }
 
+  const ebitdaMargin = ((Number(formData.ebitda) / Number(formData.revenue)) * 100).toFixed(1)
+  const netMargin = ((Number(formData.netProfit) / Number(formData.revenue)) * 100).toFixed(1)
+
   if (loading) {
     return (
       <div className="container flex min-h-screen items-center justify-center py-20">
         <div className="text-center">
           <Spinner className="mx-auto mb-4 h-12 w-12" />
-          <h2 className="mb-2 font-serif text-2xl font-bold">Bewertung wird erstellt...</h2>
-          <p className="text-muted-foreground">Dies kann einige Sekunden dauern</p>
+          <h2 className="mb-2 font-serif text-2xl font-bold">Bewertung wird geladen...</h2>
+          <p className="text-muted-foreground">Einen Moment bitte</p>
         </div>
       </div>
     )
@@ -133,9 +123,15 @@ export default function ValuationReportPage() {
           <div className="mb-8 flex items-start justify-between">
             <div>
               <h1 className="mb-2 font-serif text-4xl font-bold">Unternehmensbewertung</h1>
-              <p className="text-muted-foreground">Professionelle KI-gestützte Analyse</p>
+              <p className="text-lg text-muted-foreground">{formData.companyName}</p>
+              <p className="text-sm text-muted-foreground">Erstellt am {new Date().toLocaleDateString("de-DE")}</p>
             </div>
-            <Button onClick={handleDownloadPDF} disabled={downloadingPDF} size="lg">
+            <Button
+              onClick={handleDownloadPDF}
+              disabled={downloadingPDF}
+              size="lg"
+              className="bg-primary hover:bg-primary/90"
+            >
               {downloadingPDF ? (
                 <>
                   <Spinner className="mr-2 h-4 w-4" />
@@ -149,6 +145,44 @@ export default function ValuationReportPage() {
               )}
             </Button>
           </div>
+
+          {/* Company Info Card */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Unternehmensinformationen
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Branche</p>
+                  <p className="font-semibold">{formData.industry}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Mitarbeiter</p>
+                  <p className="font-semibold">{formData.employees}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Standort</p>
+                  <p className="font-semibold">{formData.location}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Jahresumsatz</p>
+                  <p className="font-semibold">€{Number(formData.revenue).toLocaleString("de-DE")}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">EBITDA</p>
+                  <p className="font-semibold">€{Number(formData.ebitda).toLocaleString("de-DE")}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">EBITDA-Marge</p>
+                  <p className="font-semibold">{ebitdaMargin}%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Executive Summary */}
           <Card className="mb-6">
@@ -196,69 +230,28 @@ export default function ValuationReportPage() {
             </CardContent>
           </Card>
 
-          {/* SWOT Analysis */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                SWOT-Analyse
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-2">
-                <div>
-                  <h4 className="mb-2 font-semibold text-green-600">Stärken</h4>
-                  <ul className="list-inside list-disc space-y-1 text-sm">
-                    {valuation.companyOverview.strengths.map((strength, i) => (
-                      <li key={i}>{strength}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="mb-2 font-semibold text-red-600">Schwächen</h4>
-                  <ul className="list-inside list-disc space-y-1 text-sm">
-                    {valuation.companyOverview.weaknesses.map((weakness, i) => (
-                      <li key={i}>{weakness}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="mb-2 font-semibold text-blue-600">Chancen</h4>
-                  <ul className="list-inside list-disc space-y-1 text-sm">
-                    {valuation.companyOverview.opportunities.map((opportunity, i) => (
-                      <li key={i}>{opportunity}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="mb-2 font-semibold text-orange-600">Risiken</h4>
-                  <ul className="list-inside list-disc space-y-1 text-sm">
-                    {valuation.companyOverview.threats.map((threat, i) => (
-                      <li key={i}>{threat}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Valuation Methods */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Bewertungsmethoden</CardTitle>
+              <CardTitle>Bewertungsmethoden im Detail</CardTitle>
               <CardDescription>Verschiedene Ansätze zur Unternehmensbewertung</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* EBITDA Multiple */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-semibold">EBITDA-Multiple</h4>
+                  <h4 className="font-semibold">EBITDA-Multiple-Verfahren</h4>
                   <p className="font-serif text-xl font-bold">
                     €{valuation.valuationMethods.ebitdaMultiple.calculatedValue.toLocaleString("de-DE")}
                   </p>
                 </div>
                 <p className="mb-1 text-sm text-muted-foreground">
-                  Multiple: {valuation.valuationMethods.ebitdaMultiple.multiple}x
+                  Angewandter Multiple: {valuation.valuationMethods.ebitdaMultiple.multiple}x
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Berechnung: EBITDA (€{Number(formData.ebitda).toLocaleString("de-DE")}) ×{" "}
+                  {valuation.valuationMethods.ebitdaMultiple.multiple} = €
+                  {valuation.valuationMethods.ebitdaMultiple.calculatedValue.toLocaleString("de-DE")}
                 </p>
                 <p className="text-sm text-muted-foreground">{valuation.valuationMethods.ebitdaMultiple.explanation}</p>
               </div>
@@ -266,13 +259,18 @@ export default function ValuationReportPage() {
               {/* Revenue Multiple */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-semibold">Umsatz-Multiple</h4>
+                  <h4 className="font-semibold">Umsatz-Multiple-Verfahren</h4>
                   <p className="font-serif text-xl font-bold">
                     €{valuation.valuationMethods.revenueMultiple.calculatedValue.toLocaleString("de-DE")}
                   </p>
                 </div>
                 <p className="mb-1 text-sm text-muted-foreground">
-                  Multiple: {valuation.valuationMethods.revenueMultiple.multiple}x
+                  Angewandter Multiple: {valuation.valuationMethods.revenueMultiple.multiple}x
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Berechnung: Umsatz (€{Number(formData.revenue).toLocaleString("de-DE")}) ×{" "}
+                  {valuation.valuationMethods.revenueMultiple.multiple} = €
+                  {valuation.valuationMethods.revenueMultiple.calculatedValue.toLocaleString("de-DE")}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {valuation.valuationMethods.revenueMultiple.explanation}
@@ -282,11 +280,14 @@ export default function ValuationReportPage() {
               {/* Asset Based */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-semibold">Substanzwertverfahren</h4>
+                  <h4 className="font-semibold">Substanzwertverfahren (Asset-Based)</h4>
                   <p className="font-serif text-xl font-bold">
                     €{valuation.valuationMethods.assetBased.calculatedValue.toLocaleString("de-DE")}
                   </p>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Berechnung: Vermögenswerte - Verbindlichkeiten = Substanzwert
+                </p>
                 <p className="text-sm text-muted-foreground">{valuation.valuationMethods.assetBased.explanation}</p>
               </div>
 
@@ -305,6 +306,60 @@ export default function ValuationReportPage() {
                   {valuation.valuationMethods.discountedCashFlow.explanation}
                 </p>
               </div>
+
+              {/* Chart Placeholder */}
+              <div className="chart-placeholder">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Vergleich der Bewertungsmethoden
+                <br />
+                (Visualisierung: EBITDA-Multiple, Umsatz-Multiple, Substanzwert, DCF)
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* SWOT Analysis */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                SWOT-Analyse
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="swot-grid">
+                <div className="swot-box strengths">
+                  <h4 className="font-semibold">Stärken</h4>
+                  <ul className="list-inside list-disc space-y-1 text-sm">
+                    {valuation.companyOverview.strengths.map((strength, i) => (
+                      <li key={i}>{strength}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="swot-box weaknesses">
+                  <h4 className="font-semibold">Schwächen</h4>
+                  <ul className="list-inside list-disc space-y-1 text-sm">
+                    {valuation.companyOverview.weaknesses.map((weakness, i) => (
+                      <li key={i}>{weakness}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="swot-box opportunities">
+                  <h4 className="font-semibold">Chancen</h4>
+                  <ul className="list-inside list-disc space-y-1 text-sm">
+                    {valuation.companyOverview.opportunities.map((opportunity, i) => (
+                      <li key={i}>{opportunity}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="swot-box threats">
+                  <h4 className="font-semibold">Risiken</h4>
+                  <ul className="list-inside list-disc space-y-1 text-sm">
+                    {valuation.companyOverview.threats.map((threat, i) => (
+                      <li key={i}>{threat}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -315,7 +370,7 @@ export default function ValuationReportPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="mb-2 font-semibold">Branchentrends</h4>
+                <h4 className="mb-2 font-semibold">Branchentrends und Marktumfeld</h4>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   {valuation.marketAnalysis.industryTrends}
                 </p>
@@ -331,6 +386,14 @@ export default function ValuationReportPage() {
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   {valuation.marketAnalysis.growthPotential}
                 </p>
+              </div>
+
+              {/* Chart Placeholder */}
+              <div className="chart-placeholder">
+                <PieChart className="mr-2 h-4 w-4" />
+                Marktpositionierung und Wachstumsprognose
+                <br />
+                (Visualisierung: Marktanteil, Wachstumstrend, Wettbewerbsvergleich)
               </div>
             </CardContent>
           </Card>
