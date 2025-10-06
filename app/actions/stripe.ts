@@ -1,5 +1,6 @@
 "use server"
 
+import { headers } from "next/headers"
 import { stripe } from "@/lib/stripe"
 import { PRODUCTS } from "@/lib/products"
 
@@ -10,9 +11,12 @@ export async function startCheckoutSession(productId: string) {
     throw new Error(`Product with id "${productId}" not found`)
   }
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")
+  const headersList = await headers()
+  const host = headersList.get("host") || "localhost:3000"
+  const protocol = headersList.get("x-forwarded-proto") || "http"
+  const baseUrl = `${protocol}://${host}`
+
+  console.log("[v0] Creating checkout session with return_url:", `${baseUrl}/bewertung/bericht`)
 
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
