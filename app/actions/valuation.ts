@@ -63,7 +63,7 @@ Alle Bewertungen in EUR. Seien Sie realistisch und berücksichtigen Sie die Bran
 
   try {
     const { object } = await generateObject({
-      model: "openai/gpt-5",
+      model: "openai/gpt-4o",
       schema: valuationReportSchema,
       prompt,
       maxOutputTokens: 4000,

@@ -12,7 +12,7 @@ export async function startCheckoutSession(productId: string) {
 
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
-    redirect_on_completion: "if_required",
+    redirect_on_completion: "always",
     line_items: [
       {
         price_data: {

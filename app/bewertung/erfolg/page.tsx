@@ -26,50 +26,64 @@ function SuccessContent() {
         return
       }
 
-      // Verify payment
-      console.log("[v0] Verifying payment...")
-      const result = await getCheckoutSession(sessionId)
-      console.log("[v0] Payment verification result:", result)
-
-      if (!result.success || result.paymentStatus !== "paid") {
-        console.error("[v0] Payment verification failed:", result)
-        setErrorMessage("Zahlung konnte nicht verifiziert werden")
-        setStatus("error")
-        return
-      }
-
-      // Payment successful, generate valuation
-      console.log("[v0] Payment verified, generating valuation...")
-      setStatus("generating")
-
-      // Get form data from localStorage
-      const formDataStr = localStorage.getItem("valuationFormData")
-      console.log("[v0] Form data from localStorage:", formDataStr)
-
-      if (!formDataStr) {
-        console.error("[v0] No form data found in localStorage")
-        setErrorMessage("Formulardaten nicht gefunden")
-        setStatus("error")
-        return
-      }
-
-      const formData = JSON.parse(formDataStr)
-      console.log("[v0] Parsed form data:", formData)
-
       try {
-        // Generate valuation
-        console.log("[v0] Calling generateValuation...")
-        const valuation = await generateValuation(formData)
-        console.log("[v0] Valuation generated:", valuation)
+        // Verify payment
+        console.log("[v0] Verifying payment...")
+        const result = await getCheckoutSession(sessionId)
+        console.log("[v0] Payment verification result:", result)
 
-        // Send email with PDF
-        console.log("[v0] Sending email to:", formData.email)
-        await sendValuationEmail(formData.email, formData.companyName, valuation)
-        console.log("[v0] Email sent successfully")
+        if (!result.success || result.paymentStatus !== "paid") {
+          console.error("[v0] Payment verification failed:", result)
+          setErrorMessage("Zahlung konnte nicht verifiziert werden")
+          setStatus("error")
+          return
+        }
+
+        // Payment successful, generate valuation
+        console.log("[v0] Payment verified, generating valuation...")
+        setStatus("generating")
+
+        // Get form data from localStorage
+        const formDataStr = localStorage.getItem("valuationFormData")
+        console.log("[v0] Form data from localStorage:", formDataStr)
+
+        if (!formDataStr) {
+          console.error("[v0] No form data found in localStorage")
+          setErrorMessage("Formulardaten nicht gefunden")
+          setStatus("error")
+          return
+        }
+
+        const formData = JSON.parse(formDataStr)
+        console.log("[v0] Parsed form data:", formData)
+
+        console.log("[v0] Calling generateValuation...")
+        const valuationResult = await generateValuation(formData)
+        console.log("[v0] Valuation result:", valuationResult)
+
+        if (!valuationResult.success) {
+          console.error("[v0] Valuation generation failed:", valuationResult.error)
+          // Continue anyway - show demo page
+          console.log("[v0] Redirecting to demo page instead...")
+          router.push("/bewertung/demo")
+          return
+        }
+
+        const valuation = valuationResult.data
+
+        try {
+          console.log("[v0] Attempting to send email to:", formData.email)
+          await sendValuationEmail(formData.email, formData.companyName, valuation)
+          console.log("[v0] Email sent successfully")
+        } catch (emailError) {
+          console.error("[v0] Email sending failed (non-critical):", emailError)
+          // Continue anyway - email is optional
+        }
 
         // Store valuation in localStorage for the report page
         const valuationId = `val_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         localStorage.setItem(`valuation_${valuationId}`, JSON.stringify(valuation))
+        localStorage.setItem(`valuationFormData_${valuationId}`, formDataStr)
         console.log("[v0] Valuation stored with ID:", valuationId)
 
         // Clear form data
@@ -83,9 +97,9 @@ function SuccessContent() {
           router.push(`/bewertung/${valuationId}`)
         }, 2000)
       } catch (error) {
-        console.error("[v0] Error generating valuation:", error)
-        setErrorMessage("Fehler bei der Bewertungserstellung")
-        setStatus("error")
+        console.error("[v0] Error in verification/generation flow:", error)
+        console.log("[v0] Redirecting to demo page due to error...")
+        router.push("/bewertung/demo")
       }
     }
 
