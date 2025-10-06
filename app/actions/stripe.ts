@@ -10,6 +10,10 @@ export async function startCheckoutSession(productId: string) {
     throw new Error(`Product with id "${productId}" not found`)
   }
 
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")
+
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
     redirect_on_completion: "always",
@@ -27,7 +31,7 @@ export async function startCheckoutSession(productId: string) {
       },
     ],
     mode: "payment",
-    return_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/bewertung/erfolg?session_id={CHECKOUT_SESSION_ID}`,
+    return_url: `${baseUrl}/bewertung/bericht?session_id={CHECKOUT_SESSION_ID}`,
   })
 
   return session.client_secret
