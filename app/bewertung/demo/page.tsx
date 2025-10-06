@@ -3,6 +3,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download, TrendingUp, Building2, AlertCircle, FileText } from "lucide-react"
+import { jsPDF } from "jspdf"
+import html2canvas from "html2canvas"
 
 // Mock data for demonstration
 const mockValuation = {
@@ -97,14 +99,37 @@ const mockFormData = {
 }
 
 export default function DemoValuationPage() {
-  const handleDownloadPDF = () => {
-    alert("Dies ist eine Demo-Seite. In der Live-Version können Sie hier die vollständige PDF-Bewertung herunterladen.")
+  const handleDownloadPDF = async () => {
+    const content = document.getElementById("pdf-content")
+    if (!content) return
+
+    const canvas = await html2canvas(content)
+    const imgData = canvas.toDataURL("image/png")
+
+    const pdf = new jsPDF()
+    const imgWidth = 210 // A4 width in mm
+    const pageHeight = 297 // A4 height in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width
+    let heightLeft = imgHeight
+    let position = 0
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
+    heightLeft -= pageHeight
+
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight
+      pdf.addPage()
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+    }
+
+    pdf.save(`Unternehmensbewertung-${mockFormData.companyName.replace(/\s+/g, "-")}.pdf`)
   }
 
   return (
     <div className="bg-background py-20">
       <div className="container">
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-4xl" id="pdf-content">
           {/* Demo Banner */}
           <div className="mb-6 rounded-lg bg-yellow-50 p-4 text-center">
             <p className="font-semibold text-yellow-900">📋 Demo-Ansicht - Dies ist ein Beispiel-Bewertungsbericht</p>
@@ -116,6 +141,7 @@ export default function DemoValuationPage() {
               <h1 className="mb-2 font-serif text-4xl font-bold">Unternehmensbewertung</h1>
               <p className="text-lg text-muted-foreground">{mockFormData.companyName}</p>
               <p className="text-sm text-muted-foreground">Professionelle KI-gestützte Analyse</p>
+              <p className="text-sm text-muted-foreground">Erstellt am: {new Date().toLocaleDateString("de-DE")}</p>
             </div>
             <Button onClick={handleDownloadPDF} size="lg">
               <Download className="mr-2 h-4 w-4" />
@@ -179,7 +205,7 @@ export default function DemoValuationPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-6 md:grid-cols-2">
-                <div>
+                <div className="swot-section swot-strengths">
                   <h4 className="mb-2 font-semibold text-green-600">Stärken</h4>
                   <ul className="list-inside list-disc space-y-1 text-sm">
                     {mockValuation.companyOverview.strengths.map((strength, i) => (
@@ -187,7 +213,7 @@ export default function DemoValuationPage() {
                     ))}
                   </ul>
                 </div>
-                <div>
+                <div className="swot-section swot-weaknesses">
                   <h4 className="mb-2 font-semibold text-red-600">Schwächen</h4>
                   <ul className="list-inside list-disc space-y-1 text-sm">
                     {mockValuation.companyOverview.weaknesses.map((weakness, i) => (
@@ -195,7 +221,7 @@ export default function DemoValuationPage() {
                     ))}
                   </ul>
                 </div>
-                <div>
+                <div className="swot-section swot-opportunities">
                   <h4 className="mb-2 font-semibold text-blue-600">Chancen</h4>
                   <ul className="list-inside list-disc space-y-1 text-sm">
                     {mockValuation.companyOverview.opportunities.map((opportunity, i) => (
@@ -203,7 +229,7 @@ export default function DemoValuationPage() {
                     ))}
                   </ul>
                 </div>
-                <div>
+                <div className="swot-section swot-threats">
                   <h4 className="mb-2 font-semibold text-orange-600">Risiken</h4>
                   <ul className="list-inside list-disc space-y-1 text-sm">
                     {mockValuation.companyOverview.threats.map((threat, i) => (
@@ -223,10 +249,10 @@ export default function DemoValuationPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* EBITDA Multiple */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-semibold">EBITDA-Multiple</h4>
-                  <p className="font-serif text-xl font-bold">
+              <div className="method-item">
+                <div className="method-header">
+                  <h3 className="font-semibold">EBITDA-Multiple</h3>
+                  <p className="method-value font-serif text-xl font-bold">
                     €{mockValuation.valuationMethods.ebitdaMultiple.calculatedValue.toLocaleString("de-DE")}
                   </p>
                 </div>
@@ -240,10 +266,10 @@ export default function DemoValuationPage() {
               </div>
 
               {/* Revenue Multiple */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-semibold">Umsatz-Multiple</h4>
-                  <p className="font-serif text-xl font-bold">
+              <div className="method-item">
+                <div className="method-header">
+                  <h3 className="font-semibold">Umsatz-Multiple</h3>
+                  <p className="method-value font-serif text-xl font-bold">
                     €{mockValuation.valuationMethods.revenueMultiple.calculatedValue.toLocaleString("de-DE")}
                   </p>
                 </div>
@@ -257,10 +283,10 @@ export default function DemoValuationPage() {
               </div>
 
               {/* Asset Based */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-semibold">Substanzwertverfahren</h4>
-                  <p className="font-serif text-xl font-bold">
+              <div className="method-item">
+                <div className="method-header">
+                  <h3 className="font-semibold">Substanzwertverfahren</h3>
+                  <p className="method-value font-serif text-xl font-bold">
                     €{mockValuation.valuationMethods.assetBased.calculatedValue.toLocaleString("de-DE")}
                   </p>
                 </div>
@@ -271,10 +297,10 @@ export default function DemoValuationPage() {
               </div>
 
               {/* DCF */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-semibold">Discounted Cash Flow (DCF)</h4>
-                  <p className="font-serif text-xl font-bold">
+              <div className="method-item">
+                <div className="method-header">
+                  <h3 className="font-semibold">Discounted Cash Flow (DCF)</h3>
+                  <p className="method-value font-serif text-xl font-bold">
                     €{mockValuation.valuationMethods.discountedCashFlow.calculatedValue.toLocaleString("de-DE")}
                   </p>
                 </div>
@@ -322,13 +348,13 @@ export default function DemoValuationPage() {
               <CardTitle>Strategische Empfehlungen</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="list-inside list-decimal space-y-2">
+              <ol className="list-inside list-decimal space-y-2">
                 {mockValuation.recommendations.map((rec, i) => (
                   <li key={i} className="leading-relaxed">
                     {rec}
                   </li>
                 ))}
-              </ul>
+              </ol>
             </CardContent>
           </Card>
 
@@ -355,7 +381,12 @@ export default function DemoValuationPage() {
           <div className="mt-8 rounded-lg bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">
               Diese Bewertung wurde mit künstlicher Intelligenz erstellt und dient nur zu Informationszwecken. Für
-              rechtlich bindende Bewertungen konsultieren Sie bitte einen zertifizierten Unternehmensbewerter.
+              rechtlich bindende Bewertungen konsultieren Sie bitte einen zertifizierten Unternehmensbewerter. Die
+              Bewertung basiert auf den bereitgestellten Informationen und allgemeinen Marktdaten. Unternehmenswert.io
+              übernimmt keine Haftung für Entscheidungen, die auf Basis dieser Bewertung getroffen werden.
+            </p>
+            <p style={{ marginTop: "15px" }}>
+              © {new Date().getFullYear()} Unternehmenswert.io - Alle Rechte vorbehalten
             </p>
           </div>
         </div>

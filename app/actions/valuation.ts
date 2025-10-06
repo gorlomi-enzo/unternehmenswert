@@ -1,6 +1,7 @@
 "use server"
 
 import { generateObject } from "ai"
+import { createOpenAI } from "@ai-sdk/openai"
 import { valuationReportSchema } from "@/lib/valuation-schema"
 
 interface ValuationFormData {
@@ -62,8 +63,12 @@ Alle Bewertungen in EUR. Seien Sie realistisch und berücksichtigen Sie die Bran
 `
 
   try {
+    const openai = createOpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+
     const { object } = await generateObject({
-      model: "openai/gpt-4o",
+      model: openai("gpt-4o"),
       schema: valuationReportSchema,
       prompt,
       maxOutputTokens: 4000,
